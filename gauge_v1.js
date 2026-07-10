@@ -51,34 +51,33 @@ looker.plugins.visualizations.add({
         background: null
       },
 
-      // L'AXE DES VALEURS AJUSTÉ DE 0 À 1
       yAxis: {
         min: 0,
         max: 1, // Échelle maximale à 1 (pour 100%)
         
-        // Formatage des étiquettes de l'axe (ex: 0.55 devient 55%)
+        // Graduations de l'axe en %
         labels: {
           formatter: function() {
             return (this.value * 100) + '%';
           }
         },
         
-        // Seuils de couleurs proportionnels entre 0 et 1
+        // Zones de couleurs (Gris, Jaune, Vert)
         plotBands: [
           {
             from: 0,
-            to: 0.55, // Équivaut à 55%
-            color: 'rgba(128, 128, 128, 0.1)' // gray
+            to: 0.55,
+            color: 'rgba(128, 128, 128, 0.1)'
           },
           {
             from: 0.555,
-            to: 0.745, // Équivaut à 74.5%
-            color: '#FFBF00' // yellow
+            to: 0.745,
+            color: '#FFBF00'
           },
           {
             from: 0.75,
-            to: 1, // Équivaut à 100%
-            color: '#00A96B' // green
+            to: 1,
+            color: '#00A96B'
           }
         ]
       },
@@ -86,12 +85,21 @@ looker.plugins.visualizations.add({
       series: [
         {
           name: measureLabel,
-          data: [rawValue], // L'aiguille se placera correctement (ex: 0.4534)
+          data: [rawValue], // Position de l'aiguille (ex: 0.4534)
+          
+          // CORRECTION DU TOOLTIP (Infobulle au survol)
           tooltip: {
-            valueSuffix: '%'
+            formatter: function() {
+              return this.series.name + ': <b>' + (this.y * 100).toFixed(2) + '%</b>';
+            }
           },
-          // Formatage du texte sous l'aiguille (multiplié par 100 pour l'affichage textuel)
+          
+          // CORRECTION DU TEXTE CENTRAL (Sous l'aiguille)
           dataLabels: {
+            borderWidth: 0,
+            style: {
+              fontSize: '18px'
+            },
             formatter: function() {
               return (this.y * 100).toFixed(2) + '%';
             }
