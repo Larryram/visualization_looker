@@ -1,97 +1,101 @@
 looker.plugins.visualizations.add({
-  // 1. Charger la dépendance Highcharts via CDN
-  dependencies: [
-   "https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.4.1/highcharts.js"
-  ],
+  // L'ID doit matcher parfaitement avec celui de votre manifest.lkml
+  id: "radial_gauge_custom",
+  label: "Gauge custom",
+  options: {},
 
-  // 2. Initialiser le conteneur HTML
+  // 1. Initialiser le conteneur HTML de la jauge
   create: function(element, config) {
     element.innerHTML = `
       <style>
-        #highcharts-custom-pie {
+        #highcharts-gauge-container {
           width: 100%;
           height: 100%;
         }
       </style>
-      <div id="highcharts-custom-pie"></div>
+      <div id="highcharts-gauge-container"></div>
     `;
   },
 
-  // 3. Mettre à jour le graphique avec les données de Looker
+  // 2. Récupérer la donnée Looker et injecter le graphique Highcharts
   updateAsync: function(data, element, config, queryResponse, details, done) {
-    
-    // Protection : Vérifier qu'on a bien au moins 1 dimension et 1 mesure
-    const dimensions = queryResponse.fields.dimensions;
+    this.clearErrors();
+
+    // Protection : Une jauge a besoin d'au moins une Mesure (le chiffre clé)
     const measures = queryResponse.fields.measures;
     
-    if (dimensions.length === 0 || measures.length === 0) {
+    if (measures.length === 0) {
       this.addError({
         title: "Données insuffisantes", 
-        message: "Cette visualisation nécessite au moins une Dimension (ex: Canal) et une Mesure (ex: Volume)."
+        message: "Cette jauge nécessite au moins une Mesure (ex: Chiffre d'affaires, Total...). Vous n'avez pas besoin de sélectionner de Dimension."
       });
       return done();
-    } else {
-      this.clearErrors();
     }
 
-    // Récupérer le nom technique des champs Looker
-    const dimensionName = dimensions[0].name;
+    // Récupérer dynamiquement le nom technique et le label textuel de la mesure Looker
     const measureName = measures[0].name;
     const measureLabel = measures[0].label_short || measures[0].label;
 
-    // 4. Transformation des données Looker au format Highcharts [['Nom', Valeur], ...]
-    const highchartsData = data.map(row => {
-      return [
-        row[dimensionName].value, // Ex: 'Webform', 'Call'...
-        row[measureName].value    // Ex: 55, 17...
-      ];
-    });
+    // Contrairement à un camembert, une jauge affiche UNE seule valeur globale. 
+    // On extrait donc la valeur de la toute première ligne retournée par Looker (et 0 par défaut si vide).
+    const gaugeValue = data[0] && data[0][measureName] ? Number(data[0][measureName].value) : 0;
 
-    // 5. Rendu de VOTRE modèle Highcharts personnalisé
-    Highcharts.chart(element.querySelector('#highcharts-custom-pie'), {
+    // 3. Rendu de VOTRE modèle Highcharts "Gauge"
+    // Remplacement de 'container' par element.querySelector pour éviter les bugs sur les dashboards multi-tuiles
+    Highcharts.chart(element.querySelector('#highcharts-gauge-container'), {
       chart: {
-        type: 'pie'
+        type: 'gauge'
       },
 
       title: {
-        text: 'Support requests' // Votre titre en dur
+        text: measureLabel // Titre automatique basé sur le nom de votre mesure Looker
       },
 
-      // Vos couleurs spécifiques light/branding
-      colors: ['#014CE5', '#A5AFB6', '#D6DBDE', '#E8EEF1', '#F5FCFF'],
+      // Zone géométrique de la jauge (demi-cercle)
+      pane: {
+        startAngle: -90,
+        endAngle: 90,
+        background: null
+      },
 
-      tooltip: {
-        valueSuffix: '%' // Votre suffixe d'infobulle
+      // L'axe des valeurs avec vos zones de couleurs (Gris, Jaune, Vert)
+      yAxis: {
+        min: 0,
+        max: 200000,
+        plotBands: [
+          {
+            from: 0,
+            to: 110000,
+            color: 'rgba(128, 128, 128, 0.1)' // gray
+          },
+          {
+            from: 111000,
+            to: 149000,
+            color: '#FFBF00' // yellow
+          },
+          {
+            from: 150000,
+            to: 200000,
+            color: '#00A96B' // green
+          }
+        ]
       },
 
       series: [
         {
           name: measureLabel,
-          data: highchartsData, // Vos données Looker injectées de manière dynamique
-          dataLabels: [
-            {
-              // ÉTIQUETTES EXTÉRIEURES (Noms des catégories)
-              enabled: true,
-              format: '{point.name}',
-              connectorColor: '#333'
-            },
-            {
-              // ÉTIQUETTES INTÉRIEURES (Pourcentages)
-              enabled: true,
-              format: '{point.percentage:.0f}%',
-              backgroundColor: 'contrast',
-              distance: -30, // Place l'étiquette à l'intérieur de la part
-              style: {
-                fontSize: '0.9em',
-                textOutline: 'none'
-              }
-            }
-          ]
+          data: [gaugeValue], // INJECTION DE LA DONNÉE LOOKER ICI (Remplace les 80000 en dur)
+          tooltip: {
+            valuePrefix: '$'
+          },
+          dataLabels: {
+            format: '${y:,.0f}'
+          }
         }
       ]
     });
 
-    // 6. Toujours signaler à Looker que le rendu est terminé
+    // 4. Toujours signaler à Looker que le rendu graphique est terminé
     done();
   }
 });
