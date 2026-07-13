@@ -56,7 +56,7 @@ looker.plugins.visualizations.add({
       },
 
       title: {
-        text: 'Support requests' // Votre titre en dur
+        text: ' ' // Votre titre en dur
       },
 
       // Application directe de vos couleurs spécifiques
